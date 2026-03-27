@@ -6,10 +6,12 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "aiohttp>=3.13.3",
+    "dask>=2026.3.0",
     "fsspec>=2026.2.0",
     "geopandas>=1.1.3",
     "geoviews>=1.15.1",
     "hvplot>=0.12.2",
+    "icechunk>=1.1.21",
     "ipykernel>=7.2.0",
     "lonboard>=0.15.0",
     "matplotlib>=3.10.8",
