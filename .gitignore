@@ -12,3 +12,6 @@ wheels/
 data/
 .DS_Store
 docs/
+
+__marimo__/
+.vscode/

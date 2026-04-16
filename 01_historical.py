@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.21.1"
+__generated_with = "0.22.0"
 app = marimo.App(width="medium")
 
 
@@ -52,14 +52,13 @@ def _():
     VARS = {
           "temp":   "2m_temperature",          # Kelvin           
           "precip": "total_precipitation",     # meters per hour                                                  
-          "cloud":  "total_cloud_cover",       # 0–1 fraction
     }
     return (VARS,)
 
 
 @app.cell
 def _(VARS, ds_historical_full):
-    ds_raw = ds_historical_full[list(VARS.values())].sel(time=slice("2020-01-01", "2020-12-31"))
+    ds_raw = ds_historical_full[list(VARS.values())].sel(time=slice("1990-01-01", "2020-12-31"))
     return (ds_raw,)
 
 
@@ -113,12 +112,6 @@ def _(VARS, by_calendar_day, daily_max, daily_mean, daily_min, daily_sum, xr):
           "precip_min":  by_calendar_day(daily_sum[VARS["precip"]]).min("time") * 1000,
           "precip_max":  by_calendar_day(daily_sum[VARS["precip"]]).max("time") * 1000,
           "precip_var":  by_calendar_day(daily_sum[VARS["precip"]]).var("time"),
-
-          # Cloud cover (fraction 0–1)
-          "cloud_mean": by_calendar_day(daily_mean[VARS["cloud"]]).mean("time"),
-          "cloud_min":  by_calendar_day(daily_mean[VARS["cloud"]]).min("time"),
-          "cloud_max":  by_calendar_day(daily_mean[VARS["cloud"]]).max("time"),
-          "cloud_var":  by_calendar_day(daily_mean[VARS["cloud"]]).var("time"),
       })                                             
     return (hist,)
 
@@ -135,24 +128,26 @@ def _(hist):
 
     hist["precip_var"].attrs = {"units": "(mm/day)²", "long_name": "Total precipitation variance across years"}
 
-    for var in ["cloud_mean", "cloud_min", "cloud_max"]:
-      hist[var].attrs = {"units": "fraction (0–1)", "long_name": f"Total cloud cover ({var.split('_')[1]}) climatology"}
-
-    hist["cloud_var"].attrs = {"units": "fraction²", "long_name": "Total cloud cover variance across years"}
+    hist_shifted = hist.assign_coords(longitude=(hist.longitude % 360)).sortby("longitude")
 
     print("Variables computed:", list(hist.data_vars))
+    return (hist_shifted,)
+
+
+@app.cell
+def _(hist_shifted, os):
+    out_path = "data/era5_historical.zarr"        
+    os.makedirs("data", exist_ok=True)
+
+    print(f"Writing to {out_path} ...")
+    hist_shifted.to_zarr(out_path, mode="w",           
+    zarr_format=2)  
+    print("Done!")
     return
 
 
 @app.cell
-def _(hist, os):
-    out_path = "data/era5_historical_test.zarr"        
-    os.makedirs("data", exist_ok=True)
-                                            
-    print(f"Writing to {out_path} ...")
-    hist.to_zarr(out_path, mode="w",           
-    zarr_format=2)  
-    print("Done!")
+def _():
     return
 
 
