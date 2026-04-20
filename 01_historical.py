@@ -24,8 +24,6 @@ def _(GCSStore):
         prefix="ar",
         skip_signature=True,
     )
-
-    store.list_with_delimiter()
     return
 
 
@@ -42,16 +40,9 @@ def _(GCSStore, ObjectStore, xr):
 
 
 @app.cell
-def _(ds_historical_full):
-    ds_historical_full
-    return
-
-
-@app.cell
 def _():
     VARS = {
-          "temp":   "2m_temperature",          # Kelvin           
-          "precip": "total_precipitation",     # meters per hour                                                  
+          "temp":   "2m_temperature",          # Kelvin                                                     
     }
     return (VARS,)
 
@@ -68,7 +59,7 @@ def _(ds_raw):
     daily_min  = ds_raw.resample(time="1D").min()  
     daily_max  = ds_raw.resample(time="1D").max()
     daily_sum  = ds_raw.resample(time="1D").sum()   # used only for precip
-    return daily_max, daily_mean, daily_min, daily_sum
+    return daily_max, daily_mean, daily_min
 
 
 @app.cell
@@ -87,31 +78,24 @@ def _():
 
       # For each variable and each calendar day (MM-DD), compute:
       #   - mean:  average value across all years  (the "normal")
-      #   - min:   lowest single-day value seen    (record cold/dry/clear)
-      #   - max:   highest single-day value seen   (record hot/wet/cloudy)
-      #   - var:   variance across years           (how consistent is this day?)
+      #   - min:   lowest single-day value seen   
+      #   - max:   highest single-day value seen   
+      #   - var:   variance across years           
       #
       # Temperature unit conversion: ERA5 stores in Kelvin → subtract 273.15 for °C
-      # Precipitation: ERA5 stores metres/hr → daily sum × 1000 = mm/day
 
     print("Computing climatological stats...")
     return (by_calendar_day,)
 
 
 @app.cell
-def _(VARS, by_calendar_day, daily_max, daily_mean, daily_min, daily_sum, xr):
+def _(VARS, by_calendar_day, daily_max, daily_mean, daily_min, xr):
     hist = xr.Dataset({
           # Temperature (°C)
           "temp_mean": by_calendar_day(daily_mean[VARS["temp"]]).mean("time") - 273.15,
           "temp_min":  by_calendar_day(daily_min [VARS["temp"]]).mean("time") - 273.15,
           "temp_max":  by_calendar_day(daily_max [VARS["temp"]]).mean("time") - 273.15,
           "temp_var":  by_calendar_day(daily_mean[VARS["temp"]]).var("time"),
-
-          # Precipitation (mm/day)
-          "precip_mean": by_calendar_day(daily_sum[VARS["precip"]]).mean("time") * 1000,
-          "precip_min":  by_calendar_day(daily_sum[VARS["precip"]]).min("time") * 1000,
-          "precip_max":  by_calendar_day(daily_sum[VARS["precip"]]).max("time") * 1000,
-          "precip_var":  by_calendar_day(daily_sum[VARS["precip"]]).var("time"),
       })                                             
     return (hist,)
 
@@ -122,11 +106,6 @@ def _(hist):
       hist[var].attrs = {"units": "°C", "long_name": f"2m Temperature ({var.split('_')[1]}) climatology"}
 
     hist["temp_var"].attrs = {"units": "K²", "long_name": "2m Temperature variance across years"}
-
-    for var in ["precip_mean", "precip_min", "precip_max"]:
-      hist[var].attrs = {"units": "mm/day", "long_name": f"Total precipitation ({var.split('_')[1]}) climatology"}
-
-    hist["precip_var"].attrs = {"units": "(mm/day)²", "long_name": "Total precipitation variance across years"}
 
     hist_shifted = hist.assign_coords(longitude=(hist.longitude % 360)).sortby("longitude")
 
@@ -141,13 +120,8 @@ def _(hist_shifted, os):
 
     print(f"Writing to {out_path} ...")
     hist_shifted.to_zarr(out_path, mode="w",           
-    zarr_format=2)  
+    zarr_format=3)  
     print("Done!")
-    return
-
-
-@app.cell
-def _():
     return
 
 

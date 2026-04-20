@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.21.1"
+__generated_with = "0.22.0"
 app = marimo.App(width="medium")
 
 
@@ -48,8 +48,6 @@ def _():
     # Confirm names match the check cell above before running.
     VARS = {
         "temp":   "temperature_2m",          # °C
-        "precip": "precipitation_surface",   # mm/s average rate per 3h step
-        "cloud":  "total_cloud_cover_atmosphere" # 0–1 fraction
     }
     return (VARS,)
 
@@ -83,21 +81,12 @@ def _(VARS, ds_fc_raw, xr):
         "temp_mean":    ds_fc_raw[VARS["temp"]].resample(valid_time="1D").mean(),
         "temp_min":     ds_fc_raw[VARS["temp"]].resample(valid_time="1D").min(),
         "temp_max":     ds_fc_raw[VARS["temp"]].resample(valid_time="1D").max(),
-
-        # Precipitation — rate is mm/s averaged over each 3h step (10800 seconds).
-        # Sum the rates across steps, then multiply by 10800 to get mm/day.
-        "precip_total": ds_fc_raw[VARS["precip"]].resample(valid_time="1D").sum() * 10800,
-
-        # Cloud cover — mean of 3-hourly readings each day
-        "cloud_mean":   ds_fc_raw[VARS["cloud"]].resample(valid_time="1D").mean(),
     }).rename({"valid_time": "valid_date"})
 
     # Attach units
     ds_fc_daily["temp_mean"].attrs  = {"units": "°C"}
     ds_fc_daily["temp_min"].attrs   = {"units": "°C"}
     ds_fc_daily["temp_max"].attrs   = {"units": "°C"}
-    ds_fc_daily["precip_total"].attrs = {"units": "mm/day"}
-    ds_fc_daily["cloud_mean"].attrs = {"units": "fraction (0–1)"}
 
     print("Daily forecast ready:", list(ds_fc_daily.data_vars))
     return (ds_fc_daily,)
@@ -109,7 +98,7 @@ def _(ds_fc_daily, np, os, xr):
     Merge with any previously stored forecast dates.
     Past dates are kept; overlapping/future dates are overwritten with fresh data.
     """
-    _forecast_path = "data/forecast_test.zarr"
+    _forecast_path = "data/forecast.zarr"
     os.makedirs("data", exist_ok=True)
 
     if os.path.exists(_forecast_path):
@@ -126,7 +115,7 @@ def _(ds_fc_daily, np, os, xr):
         print("No existing store — creating fresh forecast.zarr.")
 
     print("Writing forecast.zarr...")
-    _merged.to_zarr(_forecast_path, mode="w")
+    _merged.to_zarr(_forecast_path, mode="w", safe_chunks=False)
     print("Done!")
 
     forecast_zarr_path = _forecast_path
@@ -140,6 +129,11 @@ def _(forecast_zarr_path, xr):
     print("Variables:", list(_ds.data_vars))
     print("Dates:", [str(d)[:10] for d in _ds.valid_date.values])
     print("Dims:", dict(_ds.dims))
+    return
+
+
+@app.cell
+def _():
     return
 
 
