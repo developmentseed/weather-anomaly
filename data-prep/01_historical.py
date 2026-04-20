@@ -116,7 +116,7 @@ def _(hist):
 
 @app.cell
 def _(hist_shifted, os):
-    out_path = "data/era5_historical.zarr"        
+    out_path = "../data/era5_historical.zarr"        
     os.makedirs("data", exist_ok=True)
 
     print(f"Writing to {out_path} ...")

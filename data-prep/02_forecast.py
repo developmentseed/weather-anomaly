@@ -103,7 +103,7 @@ def _(ds_fc_daily, np, os, xr):
     Merge with any previously stored forecast dates.
     Past dates are kept; overlapping/future dates are overwritten with fresh data.
     """
-    _forecast_path = "data/forecast.zarr"
+    _forecast_path = "../data/forecast.zarr"
     os.makedirs("data", exist_ok=True)
 
     if os.path.exists(_forecast_path):

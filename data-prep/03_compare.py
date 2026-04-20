@@ -101,7 +101,7 @@ def _(anomaly):
     (
         anomaly
         .chunk({"valid_date": n_dates, "latitude": 64, "longitude": 64})
-        .to_zarr("data/anomaly.zarr", mode="w", zarr_format=3)
+        .to_zarr("../data/anomaly.zarr", mode="w", zarr_format=3)
     )
     print(f"Written: data/anomaly.zarr ({n_dates} dates, {len(anomaly.data_vars)} variables)")
     return
