@@ -58,7 +58,6 @@ def _(ds_raw):
     daily_mean = ds_raw.resample(time="1D").mean()
     daily_min  = ds_raw.resample(time="1D").min()  
     daily_max  = ds_raw.resample(time="1D").max()
-    daily_sum  = ds_raw.resample(time="1D").sum()   # used only for precip
     return daily_max, daily_mean, daily_min
 
 
@@ -91,12 +90,14 @@ def _():
 @app.cell
 def _(VARS, by_calendar_day, daily_max, daily_mean, daily_min, xr):
     hist = xr.Dataset({
-          # Temperature (°C)
-          "temp_mean": by_calendar_day(daily_mean[VARS["temp"]]).mean("time") - 273.15,
-          "temp_min":  by_calendar_day(daily_min [VARS["temp"]]).mean("time") - 273.15,
-          "temp_max":  by_calendar_day(daily_max [VARS["temp"]]).mean("time") - 273.15,
-          "temp_var":  by_calendar_day(daily_mean[VARS["temp"]]).var("time"),
-      })                                             
+        # Temperature (°C)
+        "temp_mean": by_calendar_day(daily_mean[VARS["temp"]]).mean("time") - 273.15,
+        "temp_min":  by_calendar_day(daily_min [VARS["temp"]]).mean("time") - 273.15,
+        "temp_max":  by_calendar_day(daily_max [VARS["temp"]]).mean("time") - 273.15,
+        "temp_var":  by_calendar_day(daily_mean[VARS["temp"]]).var("time"),
+        "temp_min_var": by_calendar_day(daily_min[VARS["temp"]]).var("time"),
+        "temp_max_var": by_calendar_day(daily_max[VARS["temp"]]).var("time"),
+    })                                             
     return (hist,)
 
 
