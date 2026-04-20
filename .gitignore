@@ -9,7 +9,9 @@ wheels/
 # Virtual environments
 .venv
 
-data/
+data/era5_historical.zarr
+data/forecast.zarr
+
 .DS_Store
 docs/
 
