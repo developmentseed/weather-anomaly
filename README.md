@@ -10,7 +10,7 @@ Compares an 8-day temperature forecast against a 30-year historical climatology 
 | `02_forecast.py`   | Downloads the latest ECMWF IFS ensemble forecast from S3 (via Icechunk) and resamples 3-hourly steps to daily temperature aggregates → `data/forecast.zarr`. **This will run daily**                              |
 | `03_compare.py`    | Joins forecast and historical data, computes absolute (°C) and standardized (σ) anomalies, and writes a map-ready zarr → `data/anomaly.zarr`. **This will run daily, and currently is committed in this repo**    |
 
-These notebooks can be run with `uv run marimo edit` or run as python scripts with ``uv run NOTEBOOK.py`
+These notebooks can be run with `uv run marimo edit` or run as python scripts with `uv run NOTEBOOK.py`
 
 ## Anomaly interpretation
 
