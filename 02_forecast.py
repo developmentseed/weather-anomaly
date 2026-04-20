@@ -81,7 +81,12 @@ def _(VARS, ds_fc_raw, xr):
         "temp_mean":    ds_fc_raw[VARS["temp"]].resample(valid_time="1D").mean(),
         "temp_min":     ds_fc_raw[VARS["temp"]].resample(valid_time="1D").min(),
         "temp_max":     ds_fc_raw[VARS["temp"]].resample(valid_time="1D").max(),
-    }).rename({"valid_time": "valid_date"})
+    }).rename({
+        "valid_time": "valid_date"
+    }).drop_vars(
+          ["ensemble_member", "expected_forecast_length","ingested_forecast_length", "init_time", "spatial_ref"],
+          errors="ignore",                                         
+      )
 
     # Attach units
     ds_fc_daily["temp_mean"].attrs  = {"units": "°C"}

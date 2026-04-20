@@ -82,13 +82,7 @@ def _(hist_std, temp_max_anom, temp_mean_anom, temp_min_anom, xr):
         "temp_mean_std":  temp_mean_anom / hist_std,
         "temp_min_std":   temp_min_anom  / hist_std,
         "temp_max_std":   temp_max_anom  / hist_std,
-    }).drop_vars([
-          "ensemble_member",                              
-          "expected_forecast_length",
-          "ingested_forecast_length",                     
-          "init_time",
-          "spatial_ref",
-      ])
+    })
     return (anomaly,)
 
 
