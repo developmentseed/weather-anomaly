@@ -9,12 +9,13 @@ wheels/
 # Virtual environments
 .venv
 
-data/era5_historical.zarr
-data/forecast.zarr
-data/era5_historical_old.zarr
+data/
 
 .DS_Store
 docs/
 
 __marimo__/
 .vscode/
+
+node_modules/
+.env.local
