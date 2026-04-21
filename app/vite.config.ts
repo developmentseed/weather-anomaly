@@ -3,6 +3,6 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react()],
-  base: "/",
+  base: "/weather-anomaly/",
   worker: { format: "es" },
 });
