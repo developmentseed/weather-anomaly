@@ -2,6 +2,9 @@
 
 Compares an 8-day temperature forecast against a 30-year historical climatology to identify anomalies and extremes.
 
+<img width="3248" height="2122" alt="CleanShot 2026-04-21 at 20 44 52@2x" src="https://github.com/user-attachments/assets/be72174c-a886-4bf9-9f6f-882ed2b1df91" />
+
+
 ## Notebooks
 
 | Notebook           | Description                                                                                                                                                                                                       |
