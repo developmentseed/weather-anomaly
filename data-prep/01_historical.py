@@ -121,7 +121,7 @@ def _(hist_shifted, os):
 
     print(f"Writing to {out_path} ...")
     hist_shifted.to_zarr(out_path, mode="w",           
-    zarr_format=3)  
+    zarr_format=2)  
     print("Done!")
     return
 
