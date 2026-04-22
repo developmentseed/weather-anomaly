@@ -17,5 +17,5 @@ docs/
 __marimo__/
 .vscode/
 
-node_modules/
+node_modules
 .env.local

@@ -22,7 +22,12 @@ import {
 } from "./anomaly/metadata.js";
 import { makeRenderTile } from "./anomaly/render-tile.js";
 import { buildSelection } from "./anomaly/selection.js";
-import { createAnomalyColormapTexture } from "./gpu/colormap.js";
+import {
+  COLORMAPS,
+  createColormapTexture,
+  loadColormapSprite,
+  type ColormapOption,
+} from "./gpu/colormap.js";
 import { ControlPanel } from "./ui/control-panel.js";
 
 const ZARR_URL = import.meta.env.VITE_ZARR_URL as string;
@@ -54,12 +59,21 @@ export default function App() {
     zarr.Array<"float32", Readable>
   > | null>(null);
   const [dates, setDates] = useState<string[]>([]);
+  const [colormap, setColormap] = useState<ColormapOption>(COLORMAPS[0]);
   const [clickedCell, setClickedCell] = useState<ClickedCell | null>(null);
   const [queryValue, setQueryValue] = useState<{
     anom: number;
     std: number;
   } | null>(null);
+  const spriteRef = useRef<ImageData | null>(null);
   const colormapRef = useRef<Texture | null>(null);
+
+  // Decode the colormap sprite PNG at startup (async, no GPU needed yet).
+  useEffect(() => {
+    loadColormapSprite().then((imageData) => {
+      spriteRef.current = imageData;
+    });
+  }, []);
 
   // Derive current array and rescale range from selected variable.
   const arr = arrays?.[variable] ?? null;
@@ -164,8 +178,8 @@ export default function App() {
       openedArr: zarr.Array<zarr.DataType, Readable>,
       options: GetTileDataOptions,
     ) => {
-      if (!colormapRef.current) {
-        colormapRef.current = createAnomalyColormapTexture(options.device);
+      if (!colormapRef.current && spriteRef.current) {
+        colormapRef.current = createColormapTexture(options.device, spriteRef.current);
       }
       return getTileData(openedArr, options);
     },
@@ -179,11 +193,12 @@ export default function App() {
       return makeRenderTile({
         dateIdx,
         colormapTexture,
+        colormap,
         rescaleMin,
         rescaleMax,
       })(data);
     },
-    [dateIdx, rescaleMin, rescaleMax],
+    [dateIdx, colormap, rescaleMin, rescaleMax],
   );
 
   const layers = arr
@@ -196,7 +211,7 @@ export default function App() {
           getTileData: getTileDataWithColormap,
           renderTile,
           updateTriggers: {
-            renderTile: [dateIdx, rescaleMin, rescaleMax],
+            renderTile: [dateIdx, colormap, rescaleMin, rescaleMax],
           },
           // @ts-expect-error beforeId is injected by @deck.gl/mapbox
           beforeId: "boundary_country_outline",
@@ -241,8 +256,10 @@ export default function App() {
               : null
           }
           isPlaying={isPlaying}
+          colormap={colormap}
           onDateIdxChange={setDateIdx}
           onVariableChange={setVariable}
+          onColormapChange={setColormap}
           onPlayPauseToggle={() => setIsPlaying((p) => !p)}
         />
       </div>

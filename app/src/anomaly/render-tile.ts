@@ -4,19 +4,20 @@ import {
   LinearRescale,
 } from "@developmentseed/deck.gl-raster/gpu-modules";
 import type { Texture } from "@luma.gl/core";
+import type { ColormapOption } from "../gpu/colormap.js";
 import { SampleTexture2DArray } from "../gpu/sample-texture-2d-array.js";
 import type { AnomalyTileData } from "./get-tile-data.js";
 
 export type MakeRenderTileArgs = {
-  /** Current date index (0 .. DATE_COUNT-1). */
   dateIdx: number;
   colormapTexture: Texture;
+  colormap: ColormapOption;
   rescaleMin: number;
   rescaleMax: number;
 };
 
 export function makeRenderTile(args: MakeRenderTileArgs) {
-  const { dateIdx, colormapTexture, rescaleMin, rescaleMax } = args;
+  const { dateIdx, colormapTexture, colormap, rescaleMin, rescaleMax } = args;
   return function renderTile(data: AnomalyTileData): RenderTileResult {
     return {
       renderPipeline: [
@@ -30,7 +31,7 @@ export function makeRenderTile(args: MakeRenderTileArgs) {
         },
         {
           module: Colormap,
-          props: { colormapTexture, colormapIndex: 0 },
+          props: { colormapTexture, colormapIndex: colormap.index, reversed: colormap.reversed },
         },
       ],
     };

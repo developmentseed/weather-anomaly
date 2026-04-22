@@ -1,4 +1,8 @@
 import {
+  COLORMAPS,
+  type ColormapOption,
+} from "../gpu/colormap.js";
+import {
   DATE_COUNT,
   VARIABLES,
   type VariableKey,
@@ -10,10 +14,12 @@ export type ControlPanelProps = {
   dateIdx: number;
   dates: string[];
   variable: VariableKey;
+  colormap: ColormapOption;
   query: QueryInfo | null;
   isPlaying: boolean;
   onDateIdxChange: (idx: number) => void;
   onVariableChange: (v: VariableKey) => void;
+  onColormapChange: (c: ColormapOption) => void;
   onPlayPauseToggle: () => void;
 };
 
@@ -22,10 +28,12 @@ export function ControlPanel(props: ControlPanelProps) {
     dateIdx,
     dates,
     variable,
+    colormap,
     query,
     isPlaying,
     onDateIdxChange,
     onVariableChange,
+    onColormapChange,
     onPlayPauseToggle,
   } = props;
   const currentDate = dates[dateIdx] ?? "—";
@@ -55,16 +63,25 @@ export function ControlPanel(props: ControlPanelProps) {
       <select
         value={variable}
         onChange={(e) => onVariableChange(e.target.value as VariableKey)}
-        style={{
-          width: "100%",
-          marginBottom: "12px",
-          padding: "4px",
-          cursor: "pointer",
-        }}
+        style={{ width: "100%", marginBottom: "8px", padding: "4px", cursor: "pointer" }}
       >
         {VARIABLES.map((v) => (
           <option key={v.value} value={v.value}>
             {v.label}
+          </option>
+        ))}
+      </select>
+      <select
+        value={colormap.label}
+        onChange={(e) => {
+          const selected = COLORMAPS.find((c) => c.label === e.target.value);
+          if (selected) onColormapChange(selected);
+        }}
+        style={{ width: "100%", marginBottom: "12px", padding: "4px", cursor: "pointer" }}
+      >
+        {COLORMAPS.map((c) => (
+          <option key={c.label} value={c.label}>
+            {c.label}
           </option>
         ))}
       </select>
@@ -97,20 +114,12 @@ export function ControlPanel(props: ControlPanelProps) {
           <div style={{ color: "#666", marginBottom: "6px" }}>
             {query.lat.toFixed(2)}°, {query.lon.toFixed(2)}°
           </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "4px",
-            }}
-          >
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
             <span style={{ color: "#666" }}>Anomaly</span>
-            <span style={{ fontWeight: "bold" }}>
-              {query.anom.toFixed(2)} °C
-            </span>
+            <span style={{ fontWeight: "bold" }}>{query.anom.toFixed(2)} °C</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ color: "#666" }}>Standard deviation</span>
+            <span style={{ color: "#666" }}>Std dev</span>
             <span style={{ fontWeight: "bold" }}>{query.std.toFixed(2)} σ</span>
           </div>
         </div>
