@@ -148,24 +148,26 @@ def _(VARS, ds_historical_full, xr):
 
 @app.cell
 def _(hist_shifted):
+    import os
+    import shutil
     import sys
     import time
     from dask.diagnostics import ProgressBar
 
     sys.stdout.reconfigure(line_buffering=True)
 
-    out_path = "../data/era5_historical.zarr"
+    final_path  = "../data/era5_historical.zarr"
+    tmp_path    = "../data/era5_historical_tmp.zarr"
+    backup_path = "../data/era5_historical_old.zarr"
 
+    # Write to a temporary location so the existing file is untouched if this fails
     max_attempts = 5
     for attempt in range(1, max_attempts + 1):
         try:
-            print(f"Writing to {out_path} ... (attempt {attempt}/{max_attempts})")
+            print(f"Writing to {tmp_path} ... (attempt {attempt}/{max_attempts})")
             with ProgressBar():
-                # Rechunk so there are many output tasks for workers to run in parallel.
-                # Output shape is (366 month_days, 721 lat, 1440 lon).
-                # This creates ~100 chunks per variable = 600 tasks total across 6 variables.
-                hist_shifted.chunk({"month_day": 366, "latitude": 72, "longitude": 144}).to_zarr(out_path, mode="w", zarr_format=2)
-            print("Done!")
+                hist_shifted.chunk({"month_day": 366, "latitude": 72, "longitude": 144}).to_zarr(tmp_path, mode="w", zarr_format=2)
+            print("Write complete.")
             break
         except Exception as e:
             print(f"Error on attempt {attempt}: {e}")
@@ -175,6 +177,16 @@ def _(hist_shifted):
                 time.sleep(wait)
             else:
                 raise
+
+    # Only swap once the write fully succeeded
+    if os.path.exists(final_path):
+        if os.path.exists(backup_path):
+            shutil.rmtree(backup_path)
+        os.rename(final_path, backup_path)
+        print(f"Previous data backed up to {backup_path}")
+
+    os.rename(tmp_path, final_path)
+    print(f"Done! Data is at {final_path}")
     return
 
 
