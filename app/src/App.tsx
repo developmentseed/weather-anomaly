@@ -16,7 +16,6 @@ import type { AnomalyTileData } from "./anomaly/get-tile-data.js";
 import { getTileData } from "./anomaly/get-tile-data.js";
 import {
   ANOMALY_GEOZARR_ATTRS,
-  DATE_COUNT,
   VARIABLES,
   type VariableKey,
 } from "./anomaly/metadata.js";
@@ -80,7 +79,8 @@ export default function App() {
   // Derive current array and rescale range from selected variable.
   const arr = arrays?.[variable] ?? null;
   const varConfig = VARIABLES.find((v) => v.value === variable)!;
-  const { rescaleMin, rescaleMax } = varConfig;
+  const rescaleMin = varConfig.defaultRescaleMin;
+  const rescaleMax = varConfig.defaultRescaleMax;
 
   // Reset filter to open (no filtering) when variable changes.
   useEffect(() => {
@@ -105,11 +105,22 @@ export default function App() {
         ]),
       );
 
-      // Compute dates from today. zarrita doesn't reliably decode xarray's
-      // datetime64[ns] encoding in zarr v3, so we derive them directly.
-      const parsedDates = Array.from({ length: DATE_COUNT }, (_, i) => {
-        const d = new Date();
-        d.setUTCDate(d.getUTCDate() + i);
+      // Read the valid_date coordinate array and decode dates from its
+      // CF-convention "units" attribute (e.g. "days since 2026-04-20").
+      const validDateArr = await zarr.open.v3(root.resolve("valid_date"), {
+        kind: "array",
+      });
+      const validDateData = await zarr.get(validDateArr);
+      const units = (validDateArr.attrs?.units as string) ?? "";
+      const epochMatch = units.match(/days since (\d{4}-\d{2}-\d{2})/);
+      const epoch = epochMatch
+        ? new Date(`${epochMatch[1]}T00:00:00Z`)
+        : new Date();
+
+      const offsets = validDateData.data as BigInt64Array;
+      const parsedDates = Array.from(offsets, (offset) => {
+        const d = new Date(epoch);
+        d.setUTCDate(d.getUTCDate() + Number(offset));
         return d.toISOString().slice(0, 10);
       });
 
@@ -156,10 +167,21 @@ export default function App() {
     };
   }, [arrays, variable, dateIdx, clickedCell]);
 
-  // Convert a map click to zarr grid indices and store.
+  // Convert a map click to zarr grid indices, derived from the geozarr
+  // spatial transform [xScale, xSkew, xOrigin, ySkew, yScale, yOrigin]
+  // and shape [latCount, lonCount].
   const handleMapClick = useCallback((lat: number, lon: number) => {
-    const latIdx = Math.min(720, Math.max(0, Math.round((90 - lat) / 0.25)));
-    const lonIdx = Math.min(1439, Math.max(0, Math.round((lon + 180) / 0.25)));
+    const [xScale, , xOrigin, , yScale, yOrigin] =
+      ANOMALY_GEOZARR_ATTRS["spatial:transform"];
+    const [latCount, lonCount] = ANOMALY_GEOZARR_ATTRS["spatial:shape"];
+    const latIdx = Math.min(
+      latCount - 1,
+      Math.max(0, Math.round((lat - yOrigin) / yScale)),
+    );
+    const lonIdx = Math.min(
+      lonCount - 1,
+      Math.max(0, Math.round((lon - xOrigin) / xScale)),
+    );
     setClickedCell({ latIdx, lonIdx, lat, lon });
   }, []);
 
@@ -170,14 +192,14 @@ export default function App() {
     let last = performance.now();
     const loop = (now: number) => {
       if (now - last >= FRAME_DURATION_MS) {
-        setDateIdx((i) => (i + 1) % DATE_COUNT);
+        setDateIdx((i) => (i + 1) % (dates.length || 1));
         last = now;
       }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [isPlaying]);
+  }, [isPlaying, dates.length]);
 
   const selection = useMemo(() => buildSelection(), []);
 
@@ -274,7 +296,7 @@ export default function App() {
           onDateIdxChange={setDateIdx}
           onVariableChange={setVariable}
           onColormapChange={setColormap}
-          onFilterChange={(min, max) => { setFilterMin(min); setFilterMax(max); }}
+          onFilterChange={(min: number, max: number) => { setFilterMin(min); setFilterMax(max); }}
           onPlayPauseToggle={() => setIsPlaying((p) => !p)}
         />
       </div>

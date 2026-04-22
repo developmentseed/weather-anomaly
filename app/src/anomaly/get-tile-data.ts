@@ -5,14 +5,12 @@ import type {
 import type { Readable } from "@zarrita/storage";
 import type { Texture } from "@luma.gl/core";
 import * as zarr from "zarrita";
-import { DATE_COUNT } from "./metadata.js";
-
 /**
- * Per-tile data: a Texture2DArray stacking all DATE_COUNT date frames
+ * Per-tile data: a Texture2DArray stacking all date frames
  * for one spatial chunk.
  */
 export type AnomalyTileData = MinimalZarrTileData & {
-  /** r32float Texture2DArray, depth = DATE_COUNT. */
+  /** r32float Texture2DArray, depth = number of valid_date entries. */
   texture: Texture;
 };
 
@@ -37,14 +35,10 @@ export async function getTileData(
       `Expected 3D sliced result (valid_date, y, x), got shape [${result.shape.join(", ")}]`,
     );
   }
-  if (result.shape[0] !== DATE_COUNT) {
-    throw new Error(
-      `Expected depth = ${DATE_COUNT}, got ${result.shape[0]}`,
-    );
-  }
+  const depth = result.shape[0];
   if (result.shape[1] !== height || result.shape[2] !== width) {
     throw new Error(
-      `Tile shape mismatch: expected [${DATE_COUNT}, ${height}, ${width}], got [${result.shape.join(", ")}]`,
+      `Tile shape mismatch: expected [${depth}, ${height}, ${width}], got [${result.shape.join(", ")}]`,
     );
   }
 
@@ -55,7 +49,7 @@ export async function getTileData(
     format: "r32float",
     width,
     height,
-    depth: DATE_COUNT,
+    depth,
     mipLevels: 1,
     data,
     sampler: {

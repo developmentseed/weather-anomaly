@@ -4,7 +4,6 @@ import {
   type ColormapOption,
 } from "../gpu/colormap.js";
 import {
-  DATE_COUNT,
   VARIABLES,
   type VariableKey,
 } from "../anomaly/metadata.js";
@@ -49,7 +48,6 @@ export function ControlPanel(props: ControlPanelProps) {
   } = props;
   const currentDate = dates[dateIdx] ?? "—";
 
-  // Step size for the filter slider — 0.1 for anomaly (°C), 0.05 for std (σ)
   const isStd = variable.endsWith("_std");
   const step = isStd ? 0.05 : 0.1;
 
@@ -120,7 +118,6 @@ export function ControlPanel(props: ControlPanelProps) {
             Math.min(rescaleMax, filterMax),
           ]}
           onValueChange={(values: number[]) => {
-            // Snap to ±Infinity when the thumb is at the slider edge (full range = no filter).
             const min = values[0] <= rescaleMin ? Number.NEGATIVE_INFINITY : values[0];
             const max = values[1] >= rescaleMax ? Number.POSITIVE_INFINITY : values[1];
             onFilterChange(min, max);
@@ -128,44 +125,17 @@ export function ControlPanel(props: ControlPanelProps) {
           style={{ position: "relative", display: "flex", alignItems: "center", height: "20px", cursor: "pointer" }}
         >
           <Slider.Track
-            style={{
-              position: "relative",
-              flexGrow: 1,
-              height: "4px",
-              background: "#ddd",
-              borderRadius: "2px",
-            }}
+            style={{ position: "relative", flexGrow: 1, height: "4px", background: "#ddd", borderRadius: "2px" }}
           >
             <Slider.Range
-              style={{
-                position: "absolute",
-                height: "100%",
-                background: "#555",
-                borderRadius: "2px",
-              }}
+              style={{ position: "absolute", height: "100%", background: "#555", borderRadius: "2px" }}
             />
           </Slider.Track>
           <Slider.Thumb
-            style={{
-              display: "block",
-              width: "14px",
-              height: "14px",
-              background: "white",
-              border: "2px solid #555",
-              borderRadius: "50%",
-              outline: "none",
-            }}
+            style={{ display: "block", width: "14px", height: "14px", background: "white", border: "2px solid #555", borderRadius: "50%", outline: "none" }}
           />
           <Slider.Thumb
-            style={{
-              display: "block",
-              width: "14px",
-              height: "14px",
-              background: "white",
-              border: "2px solid #555",
-              borderRadius: "50%",
-              outline: "none",
-            }}
+            style={{ display: "block", width: "14px", height: "14px", background: "white", border: "2px solid #555", borderRadius: "50%", outline: "none" }}
           />
         </Slider.Root>
       </div>
@@ -181,7 +151,7 @@ export function ControlPanel(props: ControlPanelProps) {
         <input
           type="range"
           min={0}
-          max={DATE_COUNT - 1}
+          max={Math.max(0, dates.length - 1)}
           value={dateIdx}
           onChange={(e) => onDateIdxChange(Number(e.target.value))}
           style={{ flex: 1, cursor: "pointer" }}
