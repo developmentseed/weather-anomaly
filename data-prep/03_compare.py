@@ -17,8 +17,8 @@ def _():
 
 @app.cell
 def _(xr):
-    forecast = xr.open_zarr("data/forecast.zarr")
-    historical = xr.open_zarr("data/era5_historical.zarr")
+    forecast = xr.open_zarr("../data/forecast.zarr")
+    historical = xr.open_zarr("../data/era5_historical.zarr")
     return forecast, historical
 
 
@@ -116,11 +116,6 @@ def _(anomaly, today_str):
 @app.cell
 def _(test):
     test.hvplot(cmap="RdBu_r", height=550, width=1000)
-    return
-
-
-@app.cell
-def _():
     return
 
 
