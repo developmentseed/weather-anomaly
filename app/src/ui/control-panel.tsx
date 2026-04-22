@@ -1,3 +1,4 @@
+import * as Slider from "@radix-ui/react-slider";
 import {
   COLORMAPS,
   type ColormapOption,
@@ -17,9 +18,14 @@ export type ControlPanelProps = {
   colormap: ColormapOption;
   query: QueryInfo | null;
   isPlaying: boolean;
+  filterMin: number;
+  filterMax: number;
+  rescaleMin: number;
+  rescaleMax: number;
   onDateIdxChange: (idx: number) => void;
   onVariableChange: (v: VariableKey) => void;
   onColormapChange: (c: ColormapOption) => void;
+  onFilterChange: (min: number, max: number) => void;
   onPlayPauseToggle: () => void;
 };
 
@@ -31,12 +37,21 @@ export function ControlPanel(props: ControlPanelProps) {
     colormap,
     query,
     isPlaying,
+    filterMin,
+    filterMax,
+    rescaleMin,
+    rescaleMax,
     onDateIdxChange,
     onVariableChange,
     onColormapChange,
+    onFilterChange,
     onPlayPauseToggle,
   } = props;
   const currentDate = dates[dateIdx] ?? "—";
+
+  // Step size for the filter slider — 0.1 for anomaly (°C), 0.05 for std (σ)
+  const isStd = variable.endsWith("_std");
+  const step = isStd ? 0.05 : 0.1;
 
   return (
     <div
@@ -85,6 +100,76 @@ export function ControlPanel(props: ControlPanelProps) {
           </option>
         ))}
       </select>
+
+      {/* Filter range slider — hides pixels outside the chosen value range */}
+      <div style={{ marginBottom: "12px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#666", marginBottom: "4px" }}>
+          <span>Filter range</span>
+          <span>
+            {!isFinite(filterMin) && !isFinite(filterMax)
+              ? "all"
+              : `${isFinite(filterMin) ? filterMin.toFixed(isStd ? 2 : 1) : "−∞"} – ${isFinite(filterMax) ? filterMax.toFixed(isStd ? 2 : 1) : "+∞"} ${isStd ? "σ" : "°C"}`}
+          </span>
+        </div>
+        <Slider.Root
+          min={rescaleMin}
+          max={rescaleMax}
+          step={step}
+          value={[
+            Math.max(rescaleMin, filterMin),
+            Math.min(rescaleMax, filterMax),
+          ]}
+          onValueChange={(values: number[]) => {
+            // Snap to ±Infinity when the thumb is at the slider edge (full range = no filter).
+            const min = values[0] <= rescaleMin ? Number.NEGATIVE_INFINITY : values[0];
+            const max = values[1] >= rescaleMax ? Number.POSITIVE_INFINITY : values[1];
+            onFilterChange(min, max);
+          }}
+          style={{ position: "relative", display: "flex", alignItems: "center", height: "20px", cursor: "pointer" }}
+        >
+          <Slider.Track
+            style={{
+              position: "relative",
+              flexGrow: 1,
+              height: "4px",
+              background: "#ddd",
+              borderRadius: "2px",
+            }}
+          >
+            <Slider.Range
+              style={{
+                position: "absolute",
+                height: "100%",
+                background: "#555",
+                borderRadius: "2px",
+              }}
+            />
+          </Slider.Track>
+          <Slider.Thumb
+            style={{
+              display: "block",
+              width: "14px",
+              height: "14px",
+              background: "white",
+              border: "2px solid #555",
+              borderRadius: "50%",
+              outline: "none",
+            }}
+          />
+          <Slider.Thumb
+            style={{
+              display: "block",
+              width: "14px",
+              height: "14px",
+              background: "white",
+              border: "2px solid #555",
+              borderRadius: "50%",
+              outline: "none",
+            }}
+          />
+        </Slider.Root>
+      </div>
+
       <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
         <button
           type="button"

@@ -60,6 +60,8 @@ export default function App() {
   > | null>(null);
   const [dates, setDates] = useState<string[]>([]);
   const [colormap, setColormap] = useState<ColormapOption>(COLORMAPS[0]);
+  const [filterMin, setFilterMin] = useState<number>(Number.NEGATIVE_INFINITY);
+  const [filterMax, setFilterMax] = useState<number>(Number.POSITIVE_INFINITY);
   const [clickedCell, setClickedCell] = useState<ClickedCell | null>(null);
   const [queryValue, setQueryValue] = useState<{
     anom: number;
@@ -79,6 +81,12 @@ export default function App() {
   const arr = arrays?.[variable] ?? null;
   const varConfig = VARIABLES.find((v) => v.value === variable)!;
   const { rescaleMin, rescaleMax } = varConfig;
+
+  // Reset filter to open (no filtering) when variable changes.
+  useEffect(() => {
+    setFilterMin(Number.NEGATIVE_INFINITY);
+    setFilterMax(Number.POSITIVE_INFINITY);
+  }, [variable]);
 
   // Open all variable arrays at startup.
   useEffect(() => {
@@ -194,11 +202,13 @@ export default function App() {
         dateIdx,
         colormapTexture,
         colormap,
+        filterMin,
+        filterMax,
         rescaleMin,
         rescaleMax,
       })(data);
     },
-    [dateIdx, colormap, rescaleMin, rescaleMax],
+    [dateIdx, colormap, filterMin, filterMax, rescaleMin, rescaleMax],
   );
 
   const layers = arr
@@ -211,7 +221,7 @@ export default function App() {
           getTileData: getTileDataWithColormap,
           renderTile,
           updateTriggers: {
-            renderTile: [dateIdx, colormap, rescaleMin, rescaleMax],
+            renderTile: [dateIdx, colormap, filterMin, filterMax, rescaleMin, rescaleMax],
           },
           // @ts-expect-error beforeId is injected by @deck.gl/mapbox
           beforeId: "boundary_country_outline",
@@ -257,9 +267,14 @@ export default function App() {
           }
           isPlaying={isPlaying}
           colormap={colormap}
+          filterMin={filterMin}
+          filterMax={filterMax}
+          rescaleMin={rescaleMin}
+          rescaleMax={rescaleMax}
           onDateIdxChange={setDateIdx}
           onVariableChange={setVariable}
           onColormapChange={setColormap}
+          onFilterChange={(min, max) => { setFilterMin(min); setFilterMax(max); }}
           onPlayPauseToggle={() => setIsPlaying((p) => !p)}
         />
       </div>
