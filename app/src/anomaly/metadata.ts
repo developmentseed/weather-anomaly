@@ -9,19 +9,13 @@ export const ANOMALY_GEOZARR_ATTRS = {
   "proj:code": "EPSG:4326",
 } as const;
 
-/**
- * Number of forecast dates in the anomaly zarr (animation length).
- * Matches the rolling 8-day window produced by the daily pipeline.
- */
-export const DATE_COUNT = 8;
-
 export const VARIABLES = [
-  { value: "temp_mean_anom", label: "Temp mean anomaly (°C)", unit: "°C", rescaleMin: -10, rescaleMax: 10 },
-  { value: "temp_min_anom",  label: "Temp min anomaly (°C)",  unit: "°C", rescaleMin: -10, rescaleMax: 10 },
-  { value: "temp_max_anom",  label: "Temp max anomaly (°C)",  unit: "°C", rescaleMin: -10, rescaleMax: 10 },
-  { value: "temp_mean_std",  label: "Temp mean anomaly (σ)",  unit: "σ",  rescaleMin: -3,  rescaleMax: 3  },
-  { value: "temp_min_std",   label: "Temp min anomaly (σ)",   unit: "σ",  rescaleMin: -3,  rescaleMax: 3  },
-  { value: "temp_max_std",   label: "Temp max anomaly (σ)",   unit: "σ",  rescaleMin: -3,  rescaleMax: 3  },
+  { value: "temp_mean_anom", label: "Temp mean anomaly (°C)", unit: "°C", defaultRescaleMin: -15, defaultRescaleMax: 15 },
+  { value: "temp_min_anom",  label: "Temp min anomaly (°C)",  unit: "°C", defaultRescaleMin: -15, defaultRescaleMax: 15 },
+  { value: "temp_max_anom",  label: "Temp max anomaly (°C)",  unit: "°C", defaultRescaleMin: -15, defaultRescaleMax: 15 },
+  { value: "temp_mean_std",  label: "Temp mean anomaly (σ)",  unit: "σ",  defaultRescaleMin: -4,  defaultRescaleMax: 4  },
+  { value: "temp_min_std",   label: "Temp min anomaly (σ)",   unit: "σ",  defaultRescaleMin: -4,  defaultRescaleMax: 4  },
+  { value: "temp_max_std",   label: "Temp max anomaly (σ)",   unit: "σ",  defaultRescaleMin: -4,  defaultRescaleMax: 4  },
 ] as const;
 
 export type VariableKey = (typeof VARIABLES)[number]["value"];

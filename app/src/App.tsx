@@ -16,13 +16,17 @@ import type { AnomalyTileData } from "./anomaly/get-tile-data.js";
 import { getTileData } from "./anomaly/get-tile-data.js";
 import {
   ANOMALY_GEOZARR_ATTRS,
-  DATE_COUNT,
   VARIABLES,
   type VariableKey,
 } from "./anomaly/metadata.js";
 import { makeRenderTile } from "./anomaly/render-tile.js";
 import { buildSelection } from "./anomaly/selection.js";
-import { createAnomalyColormapTexture } from "./gpu/colormap.js";
+import {
+  COLORMAPS,
+  createColormapTexture,
+  loadColormapSprite,
+  type ColormapOption,
+} from "./gpu/colormap.js";
 import { ControlPanel } from "./ui/control-panel.js";
 
 const ZARR_URL = import.meta.env.VITE_ZARR_URL as string;
@@ -54,17 +58,35 @@ export default function App() {
     zarr.Array<"float32", Readable>
   > | null>(null);
   const [dates, setDates] = useState<string[]>([]);
+  const [colormap, setColormap] = useState<ColormapOption>(COLORMAPS[0]);
+  const [filterMin, setFilterMin] = useState<number>(Number.NEGATIVE_INFINITY);
+  const [filterMax, setFilterMax] = useState<number>(Number.POSITIVE_INFINITY);
   const [clickedCell, setClickedCell] = useState<ClickedCell | null>(null);
   const [queryValue, setQueryValue] = useState<{
     anom: number;
     std: number;
   } | null>(null);
+  const spriteRef = useRef<ImageData | null>(null);
   const colormapRef = useRef<Texture | null>(null);
+
+  // Decode the colormap sprite PNG at startup (async, no GPU needed yet).
+  useEffect(() => {
+    loadColormapSprite().then((imageData) => {
+      spriteRef.current = imageData;
+    });
+  }, []);
 
   // Derive current array and rescale range from selected variable.
   const arr = arrays?.[variable] ?? null;
   const varConfig = VARIABLES.find((v) => v.value === variable)!;
-  const { rescaleMin, rescaleMax } = varConfig;
+  const rescaleMin = varConfig.defaultRescaleMin;
+  const rescaleMax = varConfig.defaultRescaleMax;
+
+  // Reset filter to open (no filtering) when variable changes.
+  useEffect(() => {
+    setFilterMin(Number.NEGATIVE_INFINITY);
+    setFilterMax(Number.POSITIVE_INFINITY);
+  }, [variable]);
 
   // Open all variable arrays at startup.
   useEffect(() => {
@@ -83,11 +105,22 @@ export default function App() {
         ]),
       );
 
-      // Compute dates from today. zarrita doesn't reliably decode xarray's
-      // datetime64[ns] encoding in zarr v3, so we derive them directly.
-      const parsedDates = Array.from({ length: DATE_COUNT }, (_, i) => {
-        const d = new Date();
-        d.setUTCDate(d.getUTCDate() + i);
+      // Read the valid_date coordinate array and decode dates from its
+      // CF-convention "units" attribute (e.g. "days since 2026-04-20").
+      const validDateArr = await zarr.open.v3(root.resolve("valid_date"), {
+        kind: "array",
+      });
+      const validDateData = await zarr.get(validDateArr);
+      const units = (validDateArr.attrs?.units as string) ?? "";
+      const epochMatch = units.match(/days since (\d{4}-\d{2}-\d{2})/);
+      const epoch = epochMatch
+        ? new Date(`${epochMatch[1]}T00:00:00Z`)
+        : new Date();
+
+      const offsets = validDateData.data as BigInt64Array;
+      const parsedDates = Array.from(offsets, (offset) => {
+        const d = new Date(epoch);
+        d.setUTCDate(d.getUTCDate() + Number(offset));
         return d.toISOString().slice(0, 10);
       });
 
@@ -134,10 +167,21 @@ export default function App() {
     };
   }, [arrays, variable, dateIdx, clickedCell]);
 
-  // Convert a map click to zarr grid indices and store.
+  // Convert a map click to zarr grid indices, derived from the geozarr
+  // spatial transform [xScale, xSkew, xOrigin, ySkew, yScale, yOrigin]
+  // and shape [latCount, lonCount].
   const handleMapClick = useCallback((lat: number, lon: number) => {
-    const latIdx = Math.min(720, Math.max(0, Math.round((90 - lat) / 0.25)));
-    const lonIdx = Math.min(1439, Math.max(0, Math.round((lon + 180) / 0.25)));
+    const [xScale, , xOrigin, , yScale, yOrigin] =
+      ANOMALY_GEOZARR_ATTRS["spatial:transform"];
+    const [latCount, lonCount] = ANOMALY_GEOZARR_ATTRS["spatial:shape"];
+    const latIdx = Math.min(
+      latCount - 1,
+      Math.max(0, Math.round((lat - yOrigin) / yScale)),
+    );
+    const lonIdx = Math.min(
+      lonCount - 1,
+      Math.max(0, Math.round((lon - xOrigin) / xScale)),
+    );
     setClickedCell({ latIdx, lonIdx, lat, lon });
   }, []);
 
@@ -148,14 +192,14 @@ export default function App() {
     let last = performance.now();
     const loop = (now: number) => {
       if (now - last >= FRAME_DURATION_MS) {
-        setDateIdx((i) => (i + 1) % DATE_COUNT);
+        setDateIdx((i) => (i + 1) % (dates.length || 1));
         last = now;
       }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [isPlaying]);
+  }, [isPlaying, dates.length]);
 
   const selection = useMemo(() => buildSelection(), []);
 
@@ -164,8 +208,8 @@ export default function App() {
       openedArr: zarr.Array<zarr.DataType, Readable>,
       options: GetTileDataOptions,
     ) => {
-      if (!colormapRef.current) {
-        colormapRef.current = createAnomalyColormapTexture(options.device);
+      if (!colormapRef.current && spriteRef.current) {
+        colormapRef.current = createColormapTexture(options.device, spriteRef.current);
       }
       return getTileData(openedArr, options);
     },
@@ -179,11 +223,14 @@ export default function App() {
       return makeRenderTile({
         dateIdx,
         colormapTexture,
+        colormap,
+        filterMin,
+        filterMax,
         rescaleMin,
         rescaleMax,
       })(data);
     },
-    [dateIdx, rescaleMin, rescaleMax],
+    [dateIdx, colormap, filterMin, filterMax, rescaleMin, rescaleMax],
   );
 
   const layers = arr
@@ -196,7 +243,7 @@ export default function App() {
           getTileData: getTileDataWithColormap,
           renderTile,
           updateTriggers: {
-            renderTile: [dateIdx, rescaleMin, rescaleMax],
+            renderTile: [dateIdx, colormap, filterMin, filterMax, rescaleMin, rescaleMax],
           },
           // @ts-expect-error beforeId is injected by @deck.gl/mapbox
           beforeId: "boundary_country_outline",
@@ -241,8 +288,15 @@ export default function App() {
               : null
           }
           isPlaying={isPlaying}
+          colormap={colormap}
+          filterMin={filterMin}
+          filterMax={filterMax}
+          rescaleMin={rescaleMin}
+          rescaleMax={rescaleMax}
           onDateIdxChange={setDateIdx}
           onVariableChange={setVariable}
+          onColormapChange={setColormap}
+          onFilterChange={(min: number, max: number) => { setFilterMin(min); setFilterMax(max); }}
           onPlayPauseToggle={() => setIsPlaying((p) => !p)}
         />
       </div>
