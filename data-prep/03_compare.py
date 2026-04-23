@@ -17,12 +17,20 @@ def _():
 
 @app.cell
 def _(pd, xr):
+    from obstore.store import S3Store
+    from zarr.storage import ObjectStore
+
     _forecast_raw = xr.open_zarr("../data/forecast.zarr")
     # Only keep today and future dates — past dates accumulate in forecast.zarr
     # via the merge in 02_forecast.py but have no anomaly value for users.
     _today = pd.Timestamp.now(tz="UTC").floor("D").tz_localize(None)
     forecast = _forecast_raw.sel(valid_date=_forecast_raw.valid_date >= _today)
-    historical = xr.open_zarr("../data/era5_historical.zarr")
+    # Stream directly from S3 (public-read bucket) — era5_historical.zarr is zarr v2
+    # so we pass zarr_format=2 to skip the zarr.json probe that would 403 on anonymous requests.
+    historical = xr.open_zarr(
+        ObjectStore(S3Store.from_url("s3://weather-anomaly-zarr/era5_historical.zarr", skip_signature=True)),
+        zarr_format=2,
+    )
     return forecast, historical
 
 
