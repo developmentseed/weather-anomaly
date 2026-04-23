@@ -1,0 +1,41 @@
+name: Daily data pipeline
+
+on:
+  schedule:
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ARN }}
+          aws-region: us-east-1
+
+      - name: Run forecast pipeline
+        working-directory: data-prep
+        run: uv run 02_forecast.py
+
+      - name: Run anomaly pipeline
+        working-directory: data-prep
+        run: uv run 03_compare.py
+
+      - name: Sync anomaly.zarr to S3
+        env:
+          BUCKET: weather-anomaly-zarr
+        run: |
+          aws s3 sync \
+            data/anomaly.zarr/ "s3://${BUCKET}/anomaly.zarr/" \
+            --acl public-read \
+            --delete

@@ -40,6 +40,12 @@ def _(GCSStore, ObjectStore, xr):
 
 
 @app.cell
+def _(ds_historical_full):
+    ds_historical_full
+    return
+
+
+@app.cell
 def _():
     VARS = {
           "temp":   "2m_temperature",          # Kelvin                                                     
