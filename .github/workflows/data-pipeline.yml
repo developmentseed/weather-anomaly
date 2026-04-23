@@ -37,5 +37,4 @@ jobs:
         run: |
           aws s3 sync \
             data/anomaly.zarr/ "s3://${BUCKET}/anomaly.zarr/" \
-            --acl public-read \
             --delete
