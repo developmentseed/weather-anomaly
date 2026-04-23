@@ -16,8 +16,12 @@ def _():
 
 
 @app.cell
-def _(xr):
-    forecast = xr.open_zarr("../data/forecast.zarr")
+def _(pd, xr):
+    _forecast_raw = xr.open_zarr("../data/forecast.zarr")
+    # Only keep today and future dates — past dates accumulate in forecast.zarr
+    # via the merge in 02_forecast.py but have no anomaly value for users.
+    _today = pd.Timestamp.now(tz="UTC").floor("D").tz_localize(None)
+    forecast = _forecast_raw.sel(valid_date=_forecast_raw.valid_date >= _today)
     historical = xr.open_zarr("../data/era5_historical.zarr")
     return forecast, historical
 

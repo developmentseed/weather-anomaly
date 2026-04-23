@@ -11,10 +11,9 @@ def _():
     import icechunk.xarray
     import xarray as xr
     import pandas as pd
-    import numpy as np
     import os
 
-    return icechunk, np, os, pd, xr
+    return icechunk, os, pd, xr
 
 
 @app.cell
@@ -98,29 +97,13 @@ def _(VARS, ds_fc_raw, xr):
 
 
 @app.cell
-def _(ds_fc_daily, np, os, xr):
-    """
-    Merge with any previously stored forecast dates.
-    Past dates are kept; overlapping/future dates are overwritten with fresh data.
-    """
+def _(ds_fc_daily, os):
+    """Write today's forecast window (today → today+7) to forecast.zarr."""
     _forecast_path = "../data/forecast.zarr"
     os.makedirs("data", exist_ok=True)
 
-    if os.path.exists(_forecast_path):
-        _existing = xr.open_zarr(_forecast_path)
-        # Keep only dates from the existing store that aren't in the new fetch
-        _keep = ~np.isin(_existing.valid_date.values, ds_fc_daily.valid_date.values)
-        _merged = xr.concat(
-            [_existing.isel(valid_date=_keep), ds_fc_daily],
-            dim="valid_date",
-        ).sortby("valid_date")
-        print(f"Merged with existing store. Total dates: {len(_merged.valid_date)}")
-    else:
-        _merged = ds_fc_daily
-        print("No existing store — creating fresh forecast.zarr.")
-
     print("Writing forecast.zarr...")
-    _merged.to_zarr(_forecast_path, mode="w", safe_chunks=False)
+    ds_fc_daily.to_zarr(_forecast_path, mode="w", safe_chunks=False)
     print("Done!")
 
     forecast_zarr_path = _forecast_path
