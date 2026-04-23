@@ -1,5 +1,4 @@
 import {
-  DATE_COUNT,
   VARIABLES,
   type VariableKey,
 } from "../anomaly/metadata.js";
@@ -79,7 +78,7 @@ export function ControlPanel(props: ControlPanelProps) {
         <input
           type="range"
           min={0}
-          max={DATE_COUNT - 1}
+          max={dates.length - 1}
           value={dateIdx}
           onChange={(e) => onDateIdxChange(Number(e.target.value))}
           style={{ flex: 1, cursor: "pointer" }}

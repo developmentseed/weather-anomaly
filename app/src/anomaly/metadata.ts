@@ -9,12 +9,6 @@ export const ANOMALY_GEOZARR_ATTRS = {
   "proj:code": "EPSG:4326",
 } as const;
 
-/**
- * Number of forecast dates in the anomaly zarr (animation length).
- * Matches the rolling 8-day window produced by the daily pipeline.
- */
-export const DATE_COUNT = 8;
-
 export const VARIABLES = [
   { value: "temp_mean_anom", label: "Temp mean anomaly (°C)", unit: "°C", rescaleMin: -10, rescaleMax: 10 },
   { value: "temp_min_anom",  label: "Temp min anomaly (°C)",  unit: "°C", rescaleMin: -10, rescaleMax: 10 },

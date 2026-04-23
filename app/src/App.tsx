@@ -16,7 +16,6 @@ import type { AnomalyTileData } from "./anomaly/get-tile-data.js";
 import { getTileData } from "./anomaly/get-tile-data.js";
 import {
   ANOMALY_GEOZARR_ATTRS,
-  DATE_COUNT,
   VARIABLES,
   type VariableKey,
 } from "./anomaly/metadata.js";
@@ -83,13 +82,19 @@ export default function App() {
         ]),
       );
 
-      // Compute dates from today. zarrita doesn't reliably decode xarray's
-      // datetime64[ns] encoding in zarr v3, so we derive them directly.
-      const parsedDates = Array.from({ length: DATE_COUNT }, (_, i) => {
-        const d = new Date();
-        d.setUTCDate(d.getUTCDate() + i);
-        return d.toISOString().slice(0, 10);
-      });
+      // Read valid_date coordinate directly from the zarr.
+      // Stored as int64 with CF "days since <epoch>" units — decode manually
+      // because zarrita doesn't reliably auto-decode xarray datetime64.
+      const validDateArr = await zarr.open.v3(root.resolve("valid_date"), { kind: "array" });
+      const rawDates = await zarr.get(validDateArr as zarr.Array<"int64", Readable>);
+      const units = (validDateArr.attrs as Record<string, unknown>)?.units as string ?? "";
+      const epochMatch = units.match(/days since (\d{4}-\d{2}-\d{2})/);
+      if (!epochMatch) throw new Error(`Unexpected valid_date units: "${units}"`);
+      const [year, month, day] = epochMatch[1].split("-").map(Number);
+      const epochMs = Date.UTC(year, month - 1, day); // month is 0-indexed in Date.UTC
+      const parsedDates = Array.from(rawDates.data as BigInt64Array).map((v) =>
+        new Date(epochMs + Number(v) * 86400_000).toISOString().slice(0, 10),
+      );
 
       if (cancelled) return;
       setArrays(
@@ -117,7 +122,7 @@ export default function App() {
       | "temp_max";
     const anomKey = `${base}_anom` as VariableKey;
     const stdKey = `${base}_std` as VariableKey;
-    const idx = [dateIdx, clickedCell.latIdx, clickedCell.lonIdx] as const;
+    const idx = [dateIdx, clickedCell.latIdx, clickedCell.lonIdx];
     (async () => {
       const [anomResult, stdResult] = await Promise.all([
         zarr.get(arrays[anomKey], idx),
@@ -148,7 +153,7 @@ export default function App() {
     let last = performance.now();
     const loop = (now: number) => {
       if (now - last >= FRAME_DURATION_MS) {
-        setDateIdx((i) => (i + 1) % DATE_COUNT);
+        setDateIdx((i) => (i + 1) % dates.length);
         last = now;
       }
       raf = requestAnimationFrame(loop);
@@ -198,7 +203,6 @@ export default function App() {
           updateTriggers: {
             renderTile: [dateIdx, rescaleMin, rescaleMax],
           },
-          // @ts-expect-error beforeId is injected by @deck.gl/mapbox
           beforeId: "boundary_country_outline",
         }),
       ]
